@@ -1,5 +1,5 @@
 {
-  "app": "npx ts-node --prefer-ts-exts bin/cdk-batch-efs-ecr.ts",
+  "app": "npx ts-node --prefer-ts-exts bin/cdk-brender-studio.ts",
   "watch": {
     "include": [
       "**"

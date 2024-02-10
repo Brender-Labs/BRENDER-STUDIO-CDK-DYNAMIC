@@ -8,12 +8,13 @@ import { InterfaceVpcEndpointAwsService, Port } from 'aws-cdk-lib/aws-ec2';
 import { createFileSystem } from './efs/fileSystem';
 import { createAccessPoint } from './efs/accessPoint';
 import { createS3Bucket } from './s3/s3Bucket';
-import { createCopyToEfsFn } from './functions/copyToEfsFn/construct';
 import { createListContentsFn } from './functions/listEfsContentsFn/construct';
 import { LambdaRestApi } from 'aws-cdk-lib/aws-apigateway';
+import { BrenderStudioStackProps } from './stack-config/stackProps';
 
-export class CdkBatchEfsEcrStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+
+export class BrenderStudioStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props?: BrenderStudioStackProps) {
     super(scope, id, props);
 
     const lambdaLocalMountPath = '/mnt/files';
@@ -24,23 +25,12 @@ export class CdkBatchEfsEcrStack extends cdk.Stack {
       description: 'Name of the ECR image to use in the Batch job',
     });
 
-    const blenderVersionsParameter = new cdk.CfnParameter(this, 'BlenderVersions', {
-      type: 'CommaDelimitedList',
-      description: 'Blender versions to use in the Batch job',
+    const blenderVersions = props?.blenderVersionsList ?? '';
+    console.log('blenderVersions', blenderVersions)
 
-    });
+    const brenderBucketName = props?.brenderBucketName ?? '';
 
-    // Convert the parameter string(with , separator) to a list of strings (array)
-    
-    // const blenderVersions = blenderVersionsParameter.valueAsList;
-
-    // console.log('blenderVersions', blenderVersions);
-
-
-    //CMD: cdk deploy --context stackName=BRENDER-STACK-TEST --parameters EcrImageName=blender-repo-ecr --parameters BlenderVersions=GPU-4.0.0,CPU-4.0.0,CPU-3.6.0
-    // cdk deploy --context stackName=BRENDER-STACK-TEST --parameters EcrImageName=blender-repo-ecr --parameters BlenderVersions="GPU-4.0.0\,CPU-4.0.0\,CPU-3.6.0"
-    // cdk deploy --context stackName=BRENDER-STACK-TEST --parameters EcrImageName=blender-repo-ecr --parameters BlenderVersions=GPU-4.0.0--CPU-4.0.0--CPU-3.6.0
-
+    // cdk deploy --context stackName=BRENDER-STACK-TEST --parameters EcrImageName=brender-repo-ecr --context BlenderVersions="GPU-4.0.0,CPU-4.0.0,CPU-3.6.0" --context brenderBucketName=brender-david-studio-test
 
 
     const vpc = createVpc(this, {
@@ -72,8 +62,9 @@ export class CdkBatchEfsEcrStack extends cdk.Stack {
       path: '/projects',
     });
 
+
     const s3Bucket = createS3Bucket(this, {
-      name: 'brender-cdk-ecr-batch-s3-bucket',
+      name: brenderBucketName,
     });
 
     efs.connections.allowFrom(vpcSg, Port.tcp(2049));
@@ -108,9 +99,7 @@ export class CdkBatchEfsEcrStack extends cdk.Stack {
       containerDefnName: 'batch-container-defn',
       ecrRepositoryName: ecrImageNameParameter.valueAsString,
       s3BucketName: s3Bucket.bucketName,
-      blenderVersions: blenderVersionsParameter.valueAsList
+      blenderVersionsList: blenderVersions,
     })
-
-
   }
 }

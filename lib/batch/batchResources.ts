@@ -18,17 +18,17 @@ interface BatchResourcesProps {
     containerDefnName: string,
     ecrRepositoryName: string,
     s3BucketName: string,
-    blenderVersions: string[],
+    blenderVersionsList: string,
 }
 
 export function createBatchResources(scope: Construct, props: BatchResourcesProps) {
-    const { vpc, sg, computeEnvName, jobDefnName, jobQueueName, containerDefnName, ecrRepositoryName, efs, s3BucketName , blenderVersions} = props;
+    const { vpc, sg, computeEnvName, jobDefnName, jobQueueName, containerDefnName, ecrRepositoryName, efs, s3BucketName, blenderVersionsList } = props;
 
 
     const ecrRepository = Repository.fromRepositoryName(scope, 'ECRRepository', ecrRepositoryName);
     ecrRepository.grantPull(new ServicePrincipal('batch.amazonaws.com'))
 
-    
+
 
     const computeEnv = new ManagedEc2EcsComputeEnvironment(scope, computeEnvName, {
         useOptimalInstanceClasses: true,
@@ -77,26 +77,31 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
         priority: 10,
     });
 
-    const firstBlenderVersion = cdk.Fn.select(1, blenderVersions);
+    // Context param ex: "GPU-4.0.0,CPU-4.0.0,CPU-3.6.0"
 
-    console.log('firstBlenderVersion', firstBlenderVersion)
+    let blenderList = blenderVersionsList.split(',').map(version => version.toLowerCase());
+    console.log('blenderList: ', blenderList);
 
-    const jobDefn = new EcsJobDefinition(scope, jobDefnName, {
-        timeout: cdk.Duration.minutes(1),
-        retryAttempts: 1,
-        container: new EcsEc2ContainerDefinition(scope, containerDefnName, {
-            image: ContainerImage.fromEcrRepository(ecrRepository, firstBlenderVersion),
-            memory: cdk.Size.mebibytes(2048),
-            cpu: 1,
-            volumes: [EcsVolume.efs({
-                name: 'efs-volume',
-                fileSystem: efs,
-                containerPath: '/mnt/efs',
-                rootDirectory: '/',
-                // useJobRole: true,
-                enableTransitEncryption: true,
-            })],
-        }),
+
+    blenderList.map((version, index) => {
+        new EcsJobDefinition(scope, `${jobDefnName}-${index}`, {
+            timeout: cdk.Duration.minutes(1),
+            retryAttempts: 1,
+            jobDefinitionName: `${jobDefnName}-${index}`,
+            container: new EcsEc2ContainerDefinition(scope, `${containerDefnName}-${index}`, {
+                image: ContainerImage.fromEcrRepository(ecrRepository, version),
+                memory: cdk.Size.mebibytes(2048),
+                cpu: 1,
+                volumes: [EcsVolume.efs({
+                    name: 'efs-volume',
+                    fileSystem: efs,
+                    containerPath: '/mnt/efs',
+                    rootDirectory: '/',
+                    enableTransitEncryption: true,
+                })],
+            }),
+        });
     });
+
 
 }
