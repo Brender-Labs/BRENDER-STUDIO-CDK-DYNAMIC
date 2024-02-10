@@ -14,22 +14,21 @@ interface BatchResourcesProps {
     efs: IFileSystem;
     computeEnvName: string,
     jobDefnName: string,
-    // jobDefn2Name: string,
     jobQueueName: string,
     containerDefnName: string,
-    // containerDefn2Name: string,
     ecrRepositoryName: string,
-    // ecrRepository2Name: string,
     s3BucketName: string,
+    blenderVersions: string[],
 }
 
 export function createBatchResources(scope: Construct, props: BatchResourcesProps) {
-    const { vpc, sg, computeEnvName, jobDefnName, jobQueueName, containerDefnName, ecrRepositoryName, efs, s3BucketName } = props;
+    const { vpc, sg, computeEnvName, jobDefnName, jobQueueName, containerDefnName, ecrRepositoryName, efs, s3BucketName , blenderVersions} = props;
+
 
     const ecrRepository = Repository.fromRepositoryName(scope, 'ECRRepository', ecrRepositoryName);
-    // const ecrRepository2 = Repository.fromRepositoryName(scope, 'ECRRepository2', ecrRepository2Name);
     ecrRepository.grantPull(new ServicePrincipal('batch.amazonaws.com'))
-    // ecrRepository2.grantPull(new ServicePrincipal('batch.amazonaws.com'))
+
+    
 
     const computeEnv = new ManagedEc2EcsComputeEnvironment(scope, computeEnvName, {
         useOptimalInstanceClasses: true,
@@ -78,12 +77,15 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
         priority: 10,
     });
 
+    const firstBlenderVersion = cdk.Fn.select(1, blenderVersions);
+
+    console.log('firstBlenderVersion', firstBlenderVersion)
 
     const jobDefn = new EcsJobDefinition(scope, jobDefnName, {
         timeout: cdk.Duration.minutes(1),
         retryAttempts: 1,
         container: new EcsEc2ContainerDefinition(scope, containerDefnName, {
-            image: ContainerImage.fromEcrRepository(ecrRepository, 'latest'),
+            image: ContainerImage.fromEcrRepository(ecrRepository, firstBlenderVersion),
             memory: cdk.Size.mebibytes(2048),
             cpu: 1,
             volumes: [EcsVolume.efs({
@@ -96,23 +98,5 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
             })],
         }),
     });
-
-    // const jobDefn2 = new EcsJobDefinition(scope, jobDefn2Name, {
-    //     timeout: cdk.Duration.minutes(1),
-    //     retryAttempts: 1,
-    //     container: new EcsEc2ContainerDefinition(scope, containerDefn2Name, {
-    //         image: ContainerImage.fromEcrRepository(ecrRepository2, 'latest'),
-    //         memory: cdk.Size.mebibytes(2048),
-    //         cpu: 1,
-    //         volumes: [EcsVolume.efs({
-    //             name: 'efs-volume',
-    //             fileSystem: efs,
-    //             containerPath: '/mnt/efs',
-    //             rootDirectory: '/',
-    //             // useJobRole: true,
-    //             enableTransitEncryption: true,
-    //         })],
-    //     }),
-    // });
 
 }

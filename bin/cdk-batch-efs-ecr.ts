@@ -4,7 +4,9 @@ import * as cdk from 'aws-cdk-lib';
 import { CdkBatchEfsEcrStack } from '../lib/cdk-batch-efs-ecr-stack';
 
 const app = new cdk.App();
+const stackName = app.node.tryGetContext('stackName');
 new CdkBatchEfsEcrStack(app, 'BRENDER-STACK-V1', {
+  stackName: stackName,
   // CdkBatchEfsEcrStack
   /* If you don't specify 'env', this stack will be environment-agnostic.
    * Account/Region-dependent features and context lookups will not work,

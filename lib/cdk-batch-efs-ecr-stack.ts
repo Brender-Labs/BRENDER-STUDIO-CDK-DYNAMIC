@@ -24,16 +24,23 @@ export class CdkBatchEfsEcrStack extends cdk.Stack {
       description: 'Name of the ECR image to use in the Batch job',
     });
 
-    // const ecrImageNameParameter2 = new cdk.CfnParameter(this, 'EcrImageName2', {
-    //   type: 'String',
-    //   description: 'Name of the ECR image to use in the Batch job 2',
-    // });
+    const blenderVersionsParameter = new cdk.CfnParameter(this, 'BlenderVersions', {
+      type: 'CommaDelimitedList',
+      description: 'Blender versions to use in the Batch job',
 
-    //CMD Jer//##: cdk deploy --parameters EcrImageName=test-batch-cdk
-    // CMD JER IMAGE 2: cdk deploy --parameters EcrImageName=job1 --parameters EcrImageName2=job2
-    // CMD JER IMAGE 2: cdk deploy --parameters EcrImageName2=job2
-    // CMD JER IMAGE 3: cdk deploy --parameters EcrImageName=batch-brender-jobs
-    //CMD David//##: cdk deploy --parameters EcrImageName=test-batch-ecr-blender
+    });
+
+    // Convert the parameter string(with , separator) to a list of strings (array)
+    
+    // const blenderVersions = blenderVersionsParameter.valueAsList;
+
+    // console.log('blenderVersions', blenderVersions);
+
+
+    //CMD: cdk deploy --context stackName=BRENDER-STACK-TEST --parameters EcrImageName=blender-repo-ecr --parameters BlenderVersions=GPU-4.0.0,CPU-4.0.0,CPU-3.6.0
+    // cdk deploy --context stackName=BRENDER-STACK-TEST --parameters EcrImageName=blender-repo-ecr --parameters BlenderVersions="GPU-4.0.0\,CPU-4.0.0\,CPU-3.6.0"
+    // cdk deploy --context stackName=BRENDER-STACK-TEST --parameters EcrImageName=blender-repo-ecr --parameters BlenderVersions=GPU-4.0.0--CPU-4.0.0--CPU-3.6.0
+
 
 
     const vpc = createVpc(this, {
@@ -97,13 +104,11 @@ export class CdkBatchEfsEcrStack extends cdk.Stack {
       efs: efs,
       computeEnvName: 'batch-compute-env',
       jobDefnName: 'batch-job-defn',
-      // jobDefn2Name: 'batch-job-defn2',
       jobQueueName: 'batch-job-queue',
       containerDefnName: 'batch-container-defn',
-      // containerDefn2Name: 'batch-container-defn2',
       ecrRepositoryName: ecrImageNameParameter.valueAsString,
-      // ecrRepository2Name: ecrImageNameParameter2.valueAsString,
       s3BucketName: s3Bucket.bucketName,
+      blenderVersions: blenderVersionsParameter.valueAsList
     })
 
 
