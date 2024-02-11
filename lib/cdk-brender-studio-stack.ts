@@ -8,32 +8,29 @@ import { InterfaceVpcEndpointAwsService, Port } from 'aws-cdk-lib/aws-ec2';
 import { createFileSystem } from './efs/fileSystem';
 import { createAccessPoint } from './efs/accessPoint';
 import { createS3Bucket } from './s3/s3Bucket';
-import { createCopyToEfsFn } from './functions/copyToEfsFn/construct';
 import { createListContentsFn } from './functions/listEfsContentsFn/construct';
 import { LambdaRestApi } from 'aws-cdk-lib/aws-apigateway';
+import { BrenderStudioStackProps } from './stack-config/stackProps';
 
-export class CdkBatchEfsEcrStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+
+export class BrenderStudioStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props?: BrenderStudioStackProps) {
     super(scope, id, props);
 
     const lambdaLocalMountPath = '/mnt/files';
 
     // PARAMETERS
-    const ecrImageNameParameter = new cdk.CfnParameter(this, 'EcrImageName', {
+    const ecrImageNameParameter = new cdk.CfnParameter(this, 'ecrImageName', {
       type: 'String',
       description: 'Name of the ECR image to use in the Batch job',
     });
 
-    // const ecrImageNameParameter2 = new cdk.CfnParameter(this, 'EcrImageName2', {
-    //   type: 'String',
-    //   description: 'Name of the ECR image to use in the Batch job 2',
-    // });
+    const blenderVersions = props?.blenderVersionsList;
+    console.log('blenderVersions', blenderVersions)
 
-    //CMD Jer//##: cdk deploy --parameters EcrImageName=test-batch-cdk
-    // CMD JER IMAGE 2: cdk deploy --parameters EcrImageName=job1 --parameters EcrImageName2=job2
-    // CMD JER IMAGE 2: cdk deploy --parameters EcrImageName2=job2
-    // CMD JER IMAGE 3: cdk deploy --parameters EcrImageName=batch-brender-jobs
-    //CMD David//##: cdk deploy --parameters EcrImageName=test-batch-ecr-blender
+    const brenderBucketName = props?.brenderBucketName;
+
+    // cdk deploy --context stackName=BRENDER-STACK-TEST --parameters ecrImageName=brender-repo-ecr --context blenderVersions="GPU-4.0.0,CPU-4.0.0,CPU-3.6.0" --context brenderBucketName=brender-david-studio-test
 
 
     const vpc = createVpc(this, {
@@ -65,8 +62,13 @@ export class CdkBatchEfsEcrStack extends cdk.Stack {
       path: '/projects',
     });
 
+    if (!brenderBucketName) {
+      throw new Error('brenderBucketName is required');
+    }
+
+
     const s3Bucket = createS3Bucket(this, {
-      name: 'brender-cdk-ecr-batch-s3-bucket',
+      name: brenderBucketName,
     });
 
     efs.connections.allowFrom(vpcSg, Port.tcp(2049));
@@ -91,21 +93,21 @@ export class CdkBatchEfsEcrStack extends cdk.Stack {
       logRoleName: 'CloudWatchLogsRole'
     })
 
+    if (!blenderVersions) {
+      throw new Error('blenderVersions is required');
+    }
+
     const batch = createBatchResources(this, {
       vpc,
       sg: vpcSg,
       efs: efs,
       computeEnvName: 'batch-compute-env',
       jobDefnName: 'batch-job-defn',
-      // jobDefn2Name: 'batch-job-defn2',
       jobQueueName: 'batch-job-queue',
       containerDefnName: 'batch-container-defn',
-      // containerDefn2Name: 'batch-container-defn2',
       ecrRepositoryName: ecrImageNameParameter.valueAsString,
-      // ecrRepository2Name: ecrImageNameParameter2.valueAsString,
       s3BucketName: s3Bucket.bucketName,
+      blenderVersionsList: blenderVersions,
     })
-
-
   }
 }
