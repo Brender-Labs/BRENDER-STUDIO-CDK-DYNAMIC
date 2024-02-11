@@ -5,7 +5,7 @@ import { BrenderStudioStack } from '../lib/cdk-brender-studio-stack';
 
 const app = new cdk.App();
 const stackName = app.node.tryGetContext('stackName');
-const blenderVersionsList = app.node.tryGetContext('BlenderVersions');
+const blenderVersionsList = app.node.tryGetContext('blenderVersions');
 const brenderBucketName = app.node.tryGetContext('brenderBucketName');
 
 new BrenderStudioStack(app, 'BRENDER-STACK-V1', {
