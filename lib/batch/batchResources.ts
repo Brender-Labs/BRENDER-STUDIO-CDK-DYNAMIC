@@ -1,6 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import { EcsEc2ContainerDefinition, EcsJobDefinition, EcsVolume, JobQueue, ManagedEc2EcsComputeEnvironment } from "aws-cdk-lib/aws-batch";
-import { ISecurityGroup, IVpc, SubnetType } from "aws-cdk-lib/aws-ec2";
+import { ISecurityGroup, IVpc, InstanceType, SubnetType } from "aws-cdk-lib/aws-ec2";
 import { Repository } from "aws-cdk-lib/aws-ecr";
 import { ContainerImage } from "aws-cdk-lib/aws-ecs";
 import { IFileSystem } from 'aws-cdk-lib/aws-efs';
@@ -31,7 +31,7 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
 
 
     const computeEnv = new ManagedEc2EcsComputeEnvironment(scope, computeEnvName, {
-        useOptimalInstanceClasses: true,
+        // useOptimalInstanceClasses: true,
         instanceRole: new Role(scope, 'ComputeEnvironmentRole', {
             assumedBy: new ServicePrincipal('ec2.amazonaws.com'),
             managedPolicies: [
@@ -65,6 +65,7 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
         minvCpus: 0,
         maxvCpus: 256,
         enabled: true,
+        instanceTypes: [new InstanceType('c5'), new InstanceType('g5')]
     })
 
 
