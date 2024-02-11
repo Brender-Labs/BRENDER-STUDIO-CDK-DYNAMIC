@@ -25,10 +25,10 @@ export class BrenderStudioStack extends cdk.Stack {
       description: 'Name of the ECR image to use in the Batch job',
     });
 
-    const blenderVersions = props?.blenderVersionsList ?? '';
+    const blenderVersions = props?.blenderVersionsList;
     console.log('blenderVersions', blenderVersions)
 
-    const brenderBucketName = props?.brenderBucketName ?? '';
+    const brenderBucketName = props?.brenderBucketName;
 
     // cdk deploy --context stackName=BRENDER-STACK-TEST --parameters EcrImageName=brender-repo-ecr --context BlenderVersions="GPU-4.0.0,CPU-4.0.0,CPU-3.6.0" --context brenderBucketName=brender-david-studio-test
 
@@ -62,6 +62,10 @@ export class BrenderStudioStack extends cdk.Stack {
       path: '/projects',
     });
 
+    if (!brenderBucketName) {
+      throw new Error('brenderBucketName is required');
+    }
+
 
     const s3Bucket = createS3Bucket(this, {
       name: brenderBucketName,
@@ -88,6 +92,10 @@ export class BrenderStudioStack extends cdk.Stack {
       logGroupName: 'flow-logs-group',
       logRoleName: 'CloudWatchLogsRole'
     })
+
+    if (!blenderVersions) {
+      throw new Error('blenderVersions is required');
+    }
 
     const batch = createBatchResources(this, {
       vpc,
