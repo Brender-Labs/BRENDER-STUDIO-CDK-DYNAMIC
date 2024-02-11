@@ -1,6 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
-import { EcsEc2ContainerDefinition, EcsJobDefinition, EcsVolume, JobQueue, ManagedEc2EcsComputeEnvironment } from "aws-cdk-lib/aws-batch";
-import { ISecurityGroup, IVpc, SubnetType } from "aws-cdk-lib/aws-ec2";
+import { AllocationStrategy, EcsEc2ContainerDefinition, EcsJobDefinition, EcsVolume, JobQueue, ManagedEc2EcsComputeEnvironment } from "aws-cdk-lib/aws-batch";
+import { ISecurityGroup, IVpc, InstanceType, SubnetType } from "aws-cdk-lib/aws-ec2";
 import { Repository } from "aws-cdk-lib/aws-ecr";
 import { ContainerImage } from "aws-cdk-lib/aws-ecs";
 import { IFileSystem } from 'aws-cdk-lib/aws-efs';
@@ -30,9 +30,11 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
 
 
 
-    const computeEnv = new ManagedEc2EcsComputeEnvironment(scope, computeEnvName, {
+    // =================COMPUTE ENVIRONMENTS CPU=================
+
+    const computeEnvOnDemandCPU = new ManagedEc2EcsComputeEnvironment(scope, computeEnvName, {
         useOptimalInstanceClasses: true,
-        instanceRole: new Role(scope, 'ComputeEnvironmentRole', {
+        instanceRole: new Role(scope, 'ComputeEnvironmentRoleOnDemandCPU', {
             assumedBy: new ServicePrincipal('ec2.amazonaws.com'),
             managedPolicies: [
                 ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonEC2ContainerServiceforEC2Role'),
@@ -61,21 +63,148 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
         vpcSubnets: {
             subnetType: SubnetType.PUBLIC,
         },
+        computeEnvironmentName: computeEnvName,
         securityGroups: [sg],
         minvCpus: 0,
         maxvCpus: 256,
         enabled: true,
     })
 
+    const computeEnvSpotCPU = new ManagedEc2EcsComputeEnvironment(scope, 'ComputeEnvSpotCPU', {
+        // useOptimalInstanceClasses: true,
+        instanceRole: new Role(scope, 'ComputeEnvironmentRoleSpotCPU', {
+            assumedBy: new ServicePrincipal('ec2.amazonaws.com'),
+            managedPolicies: [
+                ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonEC2ContainerServiceforEC2Role'),
+            ],
+        }),
+        vpc,
+        vpcSubnets: {
+            subnetType: SubnetType.PUBLIC,
+        },
+        instanceTypes: [
+            new InstanceType('optimal')
+            // ADD MORE INSTANCES TYPES (CPU)
+        ],
+        securityGroups: [sg],
+        minvCpus: 0,
+        maxvCpus: 256,
+        enabled: true,
+        computeEnvironmentName: 'ComputeEnvSpotCPU',
+        spot: true,
+        spotBidPercentage: 100,
+        allocationStrategy: AllocationStrategy.SPOT_CAPACITY_OPTIMIZED,
+    });
 
 
-    const jobQueue = new JobQueue(scope, jobQueueName, {
+    // =================COMPUTE ENVIRONMENTS GPU=================
+
+    const computeEnvOnDemandGPU = new ManagedEc2EcsComputeEnvironment(scope, 'ComputeEnvOnDemandGPU', {
+        instanceRole: new Role(scope, 'ComputeEnvironmentRoleOnDemandGPU', {
+            assumedBy: new ServicePrincipal('ec2.amazonaws.com'),
+            managedPolicies: [
+                ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonEC2ContainerServiceforEC2Role'),
+            ],
+            inlinePolicies: {
+                s3: new PolicyDocument({
+                    statements: [
+                        new PolicyStatement({
+                            actions: [
+                                's3:GetObject',
+                                's3:PutObject',
+                                's3:DeleteObject',
+                                's3:ListBucket'
+                            ],
+                            resources: [
+                                `arn:aws:s3:::${s3BucketName}/*`,
+                                `arn:aws:s3:::${s3BucketName}`,
+                            ],
+
+                        }),
+                    ],
+                }),
+            },
+        }),
+        vpc,
+        vpcSubnets: {
+            subnetType: SubnetType.PUBLIC,
+        },
+        instanceTypes: [
+            new InstanceType('g5')
+            // ADD MORE INSTANCES TYPES (GPU)
+        ],
+        computeEnvironmentName: 'ComputeEnvOnDemandGPU',
+        securityGroups: [sg],
+        minvCpus: 0,
+        maxvCpus: 256,
+        enabled: true,
+    })
+
+    const computeEnvSpotGPU = new ManagedEc2EcsComputeEnvironment(scope, 'ComputeEnvSpotGPU', {
+        // useOptimalInstanceClasses: true,
+        instanceRole: new Role(scope, 'ComputeEnvironmentRoleSpotGPU', {
+            assumedBy: new ServicePrincipal('ec2.amazonaws.com'),
+            managedPolicies: [
+                ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonEC2ContainerServiceforEC2Role'),
+            ],
+        }),
+        vpc,
+        vpcSubnets: {
+            subnetType: SubnetType.PUBLIC,
+        },
+        instanceTypes: [
+            new InstanceType('g5')
+        ],
+        securityGroups: [sg],
+        minvCpus: 0,
+        maxvCpus: 256,
+        enabled: true,
+        computeEnvironmentName: 'ComputeEnvSpotGPU',
+        spot: true,
+        spotBidPercentage: 100,
+        allocationStrategy: AllocationStrategy.SPOT_CAPACITY_OPTIMIZED,
+    });
+
+    // =================JOB QUEUES CPU=================
+
+    const jobQueueSpotCPU = new JobQueue(scope, 'JobQueueSpotCPU', {
         computeEnvironments: [{
-            computeEnvironment: computeEnv,
+            computeEnvironment: computeEnvSpotCPU,
+            order: 1,
+        }],
+        jobQueueName: 'JobQueueSpotCPU',
+        priority: 10,
+    });
+
+    const jobQueueOnDemandCPU = new JobQueue(scope, 'JobQueueOnDemandCPU', {
+        computeEnvironments: [{
+            computeEnvironment: computeEnvOnDemandCPU,
             order: 1,
         }],
         priority: 10,
+        jobQueueName: 'JobQueueOnDemandCPU',
     });
+
+    // =================JOB QUEUES GPU=================
+
+    const jobQueueSpotGPU = new JobQueue(scope, 'JobQueueSpotGPU', {
+        computeEnvironments: [{
+            computeEnvironment: computeEnvSpotGPU,
+            order: 1,
+        }],
+        jobQueueName: 'JobQueueSpotGPU',
+        priority: 10,
+    });
+
+    const jobQueueOnDemandGPU = new JobQueue(scope, 'JobQueueOnDemandGPU', {
+        computeEnvironments: [{
+            computeEnvironment: computeEnvOnDemandGPU,
+            order: 1,
+        }],
+        jobQueueName: 'JobQueueOnDemandGPU',
+        priority: 10,
+    });
+
 
     // Context param ex: "GPU-4.0.0,CPU-4.0.0,CPU-3.6.0"
 
