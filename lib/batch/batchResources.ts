@@ -19,10 +19,11 @@ interface BatchResourcesProps {
     ecrRepositoryName: string,
     s3BucketName: string,
     blenderVersionsList: string,
+    isPrivate: boolean,
 }
 
 export function createBatchResources(scope: Construct, props: BatchResourcesProps) {
-    const { vpc, sg, computeEnvName, jobDefnName, jobQueueName, containerDefnName, ecrRepositoryName, efs, s3BucketName, blenderVersionsList } = props;
+    const { vpc, sg, computeEnvName, jobDefnName, jobQueueName, containerDefnName, ecrRepositoryName, efs, s3BucketName, blenderVersionsList, isPrivate } = props;
 
 
     const ecrRepository = Repository.fromRepositoryName(scope, 'ECRRepository', ecrRepositoryName);
@@ -61,7 +62,7 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
         }),
         vpc,
         vpcSubnets: {
-            subnetType: SubnetType.PUBLIC,
+            subnetType: isPrivate ? SubnetType.PRIVATE_WITH_EGRESS : SubnetType.PUBLIC,
         },
         computeEnvironmentName: computeEnvName,
         securityGroups: [sg],
@@ -81,7 +82,7 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
         }),
         vpc,
         vpcSubnets: {
-            subnetType: SubnetType.PUBLIC,
+            subnetType: isPrivate ? SubnetType.PRIVATE_WITH_EGRESS : SubnetType.PUBLIC,
         },
         instanceTypes: [
             new InstanceType('optimal')
@@ -128,7 +129,7 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
         }),
         vpc,
         vpcSubnets: {
-            subnetType: SubnetType.PUBLIC,
+            subnetType: isPrivate ? SubnetType.PRIVATE_WITH_EGRESS : SubnetType.PUBLIC,
         },
         instanceTypes: [
             new InstanceType('g5')
@@ -151,7 +152,7 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
         }),
         vpc,
         vpcSubnets: {
-            subnetType: SubnetType.PUBLIC,
+            subnetType: isPrivate ? SubnetType.PRIVATE_WITH_EGRESS : SubnetType.PUBLIC,
         },
         instanceTypes: [
             new InstanceType('g5')
