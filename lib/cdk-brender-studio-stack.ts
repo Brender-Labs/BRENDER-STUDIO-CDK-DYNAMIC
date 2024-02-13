@@ -83,14 +83,14 @@ export class BrenderStudioStack extends cdk.Stack {
 
 
     const listEfsContentsFn = createListContentsFn(this, {
-      name: 'ListEfsContentFunction',
+      name: 'ListEfsContentFunction-' + uuidv4(),
       lambdaLocalMountPath: lambdaLocalMountPath,
       vpc: vpc,
       accessPoint: accessPoint,
       efs: efs,
     });
 
-    const api = new LambdaRestApi(this, 'ApiBatchEfsListContent', {
+    const api = new LambdaRestApi(this, 'ApiBatchEfsListContent-' + uuidv4(), {
       handler: listEfsContentsFn,
     });
 
