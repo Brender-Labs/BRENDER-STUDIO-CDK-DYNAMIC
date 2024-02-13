@@ -34,7 +34,7 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
 
     // =================COMPUTE ENVIRONMENTS CPU=================
 
-    const computeEnvOnDemandCPU = new ManagedEc2EcsComputeEnvironment(scope, 'ComputeEnvOnDemandCPU', {
+    const computeEnvOnDemandCPU = new ManagedEc2EcsComputeEnvironment(scope, 'ComputeEnvOnDemandCPU-' + uuidv4(), {
         useOptimalInstanceClasses: true,
         instanceRole: new Role(scope, 'ComputeEnvironmentRoleOnDemandCPU', {
             assumedBy: new ServicePrincipal('ec2.amazonaws.com'),
@@ -47,7 +47,7 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
         vpcSubnets: {
             subnetType: isPrivate ? SubnetType.PRIVATE_WITH_EGRESS : SubnetType.PUBLIC,
         },
-        computeEnvironmentName: 'ComputeEnvOnDemandCPU',
+        computeEnvironmentName: 'ComputeEnvOnDemandCPU-' + uuidv4(),
         securityGroups: [sg],
         minvCpus: 0,
         maxvCpus: 256,
@@ -56,7 +56,7 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
     })
 
 
-    const computeEnvSpotCPU = new ManagedEc2EcsComputeEnvironment(scope, 'ComputeEnvSpotCPU', {
+    const computeEnvSpotCPU = new ManagedEc2EcsComputeEnvironment(scope, 'ComputeEnvSpotCPU-' + uuidv4(), {
         // useOptimalInstanceClasses: true,
         instanceRole: new Role(scope, 'ComputeEnvironmentRoleSpotCPU', {
             assumedBy: new ServicePrincipal('ec2.amazonaws.com'),
@@ -77,7 +77,7 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
         minvCpus: 0,
         maxvCpus: 256,
         enabled: true,
-        computeEnvironmentName: 'ComputeEnvSpotCPU',
+        computeEnvironmentName: 'ComputeEnvSpotCPU-' + uuidv4(),
         spot: true,
         spotBidPercentage: 100,
         allocationStrategy: AllocationStrategy.SPOT_CAPACITY_OPTIMIZED,
@@ -86,7 +86,7 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
 
     // =================COMPUTE ENVIRONMENTS GPU=================
 
-    const computeEnvOnDemandGPU = new ManagedEc2EcsComputeEnvironment(scope, 'ComputeEnvOnDemandGPU', {
+    const computeEnvOnDemandGPU = new ManagedEc2EcsComputeEnvironment(scope, 'ComputeEnvOnDemandGPU-' + uuidv4(), {
         instanceRole: new Role(scope, 'ComputeEnvironmentRoleOnDemandGPU', {
             assumedBy: new ServicePrincipal('ec2.amazonaws.com'),
             managedPolicies: [
@@ -102,7 +102,7 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
             new InstanceType('g5')
             // ADD MORE INSTANCES TYPES (GPU)
         ],
-        computeEnvironmentName: 'ComputeEnvOnDemandGPU',
+        computeEnvironmentName: 'ComputeEnvOnDemandGPU-' + uuidv4(),
         securityGroups: [sg],
         minvCpus: 0,
         maxvCpus: 256,
@@ -183,11 +183,12 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
 
 
     blenderList.map((version, index) => {
-        new EcsJobDefinition(scope, `JobDefinition-${index}-` + uuidv4(), {
+        let prefix = version.startsWith("gpu") ? "GPU" : "CPU";
+        new EcsJobDefinition(scope, `JobDefinition-${prefix}-${index}-` + uuidv4(), {
             timeout: cdk.Duration.minutes(1),
             retryAttempts: 1,
             jobDefinitionName: `JobDefinition-${index}`,
-            container: new EcsEc2ContainerDefinition(scope, `ContainerDefinition-${index}` + uuidv4(), {
+            container: new EcsEc2ContainerDefinition(scope, `ContainerDefinition-${prefix}-${index}` + uuidv4(), {
                 image: ContainerImage.fromEcrRepository(ecrRepository, version),
                 memory: cdk.Size.mebibytes(2048),
                 cpu: 1,
