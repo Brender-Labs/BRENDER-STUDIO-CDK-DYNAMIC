@@ -4,8 +4,9 @@ import { ISecurityGroup, IVpc, InstanceType, SubnetType } from "aws-cdk-lib/aws-
 import { Repository } from "aws-cdk-lib/aws-ecr";
 import { ContainerImage } from "aws-cdk-lib/aws-ecs";
 import { IFileSystem } from 'aws-cdk-lib/aws-efs';
-import { ManagedPolicy, PolicyDocument, PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
+import { ManagedPolicy, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
+import { createS3Policy } from '../iam-roles/s3/createS3Policy';
 
 
 interface BatchResourcesProps {
@@ -23,12 +24,14 @@ interface BatchResourcesProps {
 }
 
 export function createBatchResources(scope: Construct, props: BatchResourcesProps) {
-    const { vpc, sg, computeEnvName, jobDefnName, jobQueueName, containerDefnName, ecrRepositoryName, efs, s3BucketName, blenderVersionsList, isPrivate } = props;
+    const { vpc, sg, computeEnvName, jobDefnName, containerDefnName, ecrRepositoryName, efs, s3BucketName, blenderVersionsList, isPrivate } = props;
 
 
     const ecrRepository = Repository.fromRepositoryName(scope, 'ECRRepository', ecrRepositoryName);
     ecrRepository.grantPull(new ServicePrincipal('batch.amazonaws.com'))
 
+
+    const s3Policy = createS3Policy(scope, { s3BucketName })
 
 
     // =================COMPUTE ENVIRONMENTS CPU=================
@@ -39,26 +42,8 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
             assumedBy: new ServicePrincipal('ec2.amazonaws.com'),
             managedPolicies: [
                 ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonEC2ContainerServiceforEC2Role'),
+                s3Policy,
             ],
-            inlinePolicies: {
-                s3: new PolicyDocument({
-                    statements: [
-                        new PolicyStatement({
-                            actions: [
-                                's3:GetObject',
-                                's3:PutObject',
-                                's3:DeleteObject',
-                                's3:ListBucket'
-                            ],
-                            resources: [
-                                `arn:aws:s3:::${s3BucketName}/*`,
-                                `arn:aws:s3:::${s3BucketName}`,
-                            ],
-
-                        }),
-                    ],
-                }),
-            },
         }),
         vpc,
         vpcSubnets: {
@@ -72,12 +57,14 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
         instanceTypes: [new InstanceType('c5'), new InstanceType('g5')]
     })
 
+
     const computeEnvSpotCPU = new ManagedEc2EcsComputeEnvironment(scope, 'ComputeEnvSpotCPU', {
         // useOptimalInstanceClasses: true,
         instanceRole: new Role(scope, 'ComputeEnvironmentRoleSpotCPU', {
             assumedBy: new ServicePrincipal('ec2.amazonaws.com'),
             managedPolicies: [
                 ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonEC2ContainerServiceforEC2Role'),
+                s3Policy,
             ],
         }),
         vpc,
@@ -106,26 +93,8 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
             assumedBy: new ServicePrincipal('ec2.amazonaws.com'),
             managedPolicies: [
                 ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonEC2ContainerServiceforEC2Role'),
+                s3Policy,
             ],
-            inlinePolicies: {
-                s3: new PolicyDocument({
-                    statements: [
-                        new PolicyStatement({
-                            actions: [
-                                's3:GetObject',
-                                's3:PutObject',
-                                's3:DeleteObject',
-                                's3:ListBucket'
-                            ],
-                            resources: [
-                                `arn:aws:s3:::${s3BucketName}/*`,
-                                `arn:aws:s3:::${s3BucketName}`,
-                            ],
-
-                        }),
-                    ],
-                }),
-            },
         }),
         vpc,
         vpcSubnets: {
@@ -148,6 +117,7 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
             assumedBy: new ServicePrincipal('ec2.amazonaws.com'),
             managedPolicies: [
                 ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonEC2ContainerServiceforEC2Role'),
+                s3Policy,
             ],
         }),
         vpc,
@@ -167,8 +137,8 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
         allocationStrategy: AllocationStrategy.SPOT_CAPACITY_OPTIMIZED,
     });
 
-    // =================JOB QUEUES CPU=================
 
+    // =================JOB QUEUES CPU=================
     const jobQueueSpotCPU = new JobQueue(scope, 'JobQueueSpotCPU', {
         computeEnvironments: [{
             computeEnvironment: computeEnvSpotCPU,
@@ -187,8 +157,8 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
         jobQueueName: 'JobQueueOnDemandCPU',
     });
 
-    // =================JOB QUEUES GPU=================
 
+    // =================JOB QUEUES GPU=================
     const jobQueueSpotGPU = new JobQueue(scope, 'JobQueueSpotGPU', {
         computeEnvironments: [{
             computeEnvironment: computeEnvSpotGPU,
