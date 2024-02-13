@@ -187,7 +187,7 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
         new EcsJobDefinition(scope, `JobDefinition-${prefix}-${index}-` + uuidv4(), {
             timeout: cdk.Duration.minutes(1),
             retryAttempts: 1,
-            jobDefinitionName: `JobDefinition-${prefix}-${index}`,
+            jobDefinitionName: `JobDefinition-${prefix}-${index}-` + uuidv4(),
             container: new EcsEc2ContainerDefinition(scope, `ContainerDefinition-${prefix}-${index}` + uuidv4(), {
                 image: ContainerImage.fromEcrRepository(ecrRepository, version),
                 memory: cdk.Size.mebibytes(2048),
