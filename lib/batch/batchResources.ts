@@ -7,16 +7,14 @@ import { IFileSystem } from 'aws-cdk-lib/aws-efs';
 import { ManagedPolicy, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 import { createS3Policy } from '../iam-roles/s3/createS3Policy';
+import { v4 as uuidv4 } from 'uuid';
+
 
 
 interface BatchResourcesProps {
     vpc: IVpc,
     sg: ISecurityGroup,
     efs: IFileSystem;
-    computeEnvName: string,
-    jobDefnName: string,
-    jobQueueName: string,
-    containerDefnName: string,
     ecrRepositoryName: string,
     s3BucketName: string,
     blenderVersionsList: string,
@@ -24,7 +22,7 @@ interface BatchResourcesProps {
 }
 
 export function createBatchResources(scope: Construct, props: BatchResourcesProps) {
-    const { vpc, sg, computeEnvName, jobDefnName, containerDefnName, ecrRepositoryName, efs, s3BucketName, blenderVersionsList, isPrivate } = props;
+    const { vpc, sg, ecrRepositoryName, efs, s3BucketName, blenderVersionsList, isPrivate } = props;
 
 
     const ecrRepository = Repository.fromRepositoryName(scope, 'ECRRepository', ecrRepositoryName);
@@ -36,7 +34,7 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
 
     // =================COMPUTE ENVIRONMENTS CPU=================
 
-    const computeEnvOnDemandCPU = new ManagedEc2EcsComputeEnvironment(scope, computeEnvName, {
+    const computeEnvOnDemandCPU = new ManagedEc2EcsComputeEnvironment(scope, 'ComputeEnvOnDemandCPU', {
         useOptimalInstanceClasses: true,
         instanceRole: new Role(scope, 'ComputeEnvironmentRoleOnDemandCPU', {
             assumedBy: new ServicePrincipal('ec2.amazonaws.com'),
@@ -49,7 +47,7 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
         vpcSubnets: {
             subnetType: isPrivate ? SubnetType.PRIVATE_WITH_EGRESS : SubnetType.PUBLIC,
         },
-        computeEnvironmentName: computeEnvName,
+        computeEnvironmentName: 'ComputeEnvOnDemandCPU',
         securityGroups: [sg],
         minvCpus: 0,
         maxvCpus: 256,
@@ -111,7 +109,7 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
         enabled: true,
     })
 
-    const computeEnvSpotGPU = new ManagedEc2EcsComputeEnvironment(scope, 'ComputeEnvSpotGPU', {
+    const computeEnvSpotGPU = new ManagedEc2EcsComputeEnvironment(scope, 'ComputeEnvSpotGPU-' + uuidv4(), {
         // useOptimalInstanceClasses: true,
         instanceRole: new Role(scope, 'ComputeEnvironmentRoleSpotGPU', {
             assumedBy: new ServicePrincipal('ec2.amazonaws.com'),
@@ -131,7 +129,7 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
         minvCpus: 0,
         maxvCpus: 256,
         enabled: true,
-        computeEnvironmentName: 'ComputeEnvSpotGPU',
+        computeEnvironmentName: 'ComputeEnvSpotGPU-' + uuidv4(),
         spot: true,
         spotBidPercentage: 100,
         allocationStrategy: AllocationStrategy.SPOT_CAPACITY_OPTIMIZED,
@@ -139,41 +137,41 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
 
 
     // =================JOB QUEUES CPU=================
-    const jobQueueSpotCPU = new JobQueue(scope, 'JobQueueSpotCPU', {
+    const jobQueueSpotCPU = new JobQueue(scope, 'JobQueueSpotCPU-' + uuidv4(), {
         computeEnvironments: [{
             computeEnvironment: computeEnvSpotCPU,
             order: 1,
         }],
-        jobQueueName: 'JobQueueSpotCPU',
+        jobQueueName: 'JobQueueSpotCPU-' + uuidv4(),
         priority: 10,
     });
 
-    const jobQueueOnDemandCPU = new JobQueue(scope, 'JobQueueOnDemandCPU', {
+    const jobQueueOnDemandCPU = new JobQueue(scope, 'JobQueueOnDemandCPU-' + uuidv4(), {
         computeEnvironments: [{
             computeEnvironment: computeEnvOnDemandCPU,
             order: 1,
         }],
         priority: 10,
-        jobQueueName: 'JobQueueOnDemandCPU',
+        jobQueueName: 'JobQueueOnDemandCPU-' + uuidv4(),
     });
 
 
     // =================JOB QUEUES GPU=================
-    const jobQueueSpotGPU = new JobQueue(scope, 'JobQueueSpotGPU', {
+    const jobQueueSpotGPU = new JobQueue(scope, 'JobQueueSpotGPU-' + uuidv4(), {
         computeEnvironments: [{
             computeEnvironment: computeEnvSpotGPU,
             order: 1,
         }],
-        jobQueueName: 'JobQueueSpotGPU',
+        jobQueueName: 'JobQueueSpotGPU-' + uuidv4(),
         priority: 10,
     });
 
-    const jobQueueOnDemandGPU = new JobQueue(scope, 'JobQueueOnDemandGPU', {
+    const jobQueueOnDemandGPU = new JobQueue(scope, 'JobQueueOnDemandGPU-' + uuidv4(), {
         computeEnvironments: [{
             computeEnvironment: computeEnvOnDemandGPU,
             order: 1,
         }],
-        jobQueueName: 'JobQueueOnDemandGPU',
+        jobQueueName: 'JobQueueOnDemandGPU-' + uuidv4(),
         priority: 10,
     });
 
@@ -185,11 +183,11 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
 
 
     blenderList.map((version, index) => {
-        new EcsJobDefinition(scope, `${jobDefnName}-${index}`, {
+        new EcsJobDefinition(scope, `JobDefinition-${index}-` + uuidv4(), {
             timeout: cdk.Duration.minutes(1),
             retryAttempts: 1,
-            jobDefinitionName: `${jobDefnName}-${index}`,
-            container: new EcsEc2ContainerDefinition(scope, `${containerDefnName}-${index}`, {
+            jobDefinitionName: `JobDefinition-${index}`,
+            container: new EcsEc2ContainerDefinition(scope, `ContainerDefinition-${index}` + uuidv4(), {
                 image: ContainerImage.fromEcrRepository(ecrRepository, version),
                 memory: cdk.Size.mebibytes(2048),
                 cpu: 1,
