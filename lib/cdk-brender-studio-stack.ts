@@ -28,14 +28,22 @@ export class BrenderStudioStack extends cdk.Stack {
     const blenderVersions = props?.blenderVersionsList;
     console.log('blenderVersions', blenderVersions)
 
+    const privateStack = props?.isPrivate;
+
+    const isPrivate = Boolean(privateStack);
+    console.log('isPrivate', isPrivate)
+
     const brenderBucketName = props?.brenderBucketName;
 
     // cdk deploy --context stackName=BRENDER-STACK-TEST --parameters ecrImageName=brender-repo-ecr --context blenderVersions="GPU-4.0.0,CPU-4.0.0,CPU-3.6.0" --context brenderBucketName=brender-david-studio-test
+    // cdk deploy --context stackName=BRENDER-STACK-TEST --parameters ecrImageName=brender-repo-ecr --context blenderVersions="GPU-4.0.0,CPU-4.0.0,CPU-3.6.0" --context brenderBucketName=brender-david-studio-test --context isPrivate="false"
+
 
 
     const vpc = createVpc(this, {
       name: 'batch-vpc',
-      gatewayEndpointName: 'vpce-s3'
+      gatewayEndpointName: 'vpce-s3',
+      isPrivate,
     })
 
     const vpcSg = createSecurityGroup(this, {
@@ -43,11 +51,11 @@ export class BrenderStudioStack extends cdk.Stack {
       vpc
     })
 
-    vpc.addInterfaceEndpoint('vpc-interface-endpoint-efs', {
-      service: InterfaceVpcEndpointAwsService.ELASTIC_FILESYSTEM,
-      securityGroups: [vpcSg],
-      privateDnsEnabled: true,
-    });
+    // vpc.addInterfaceEndpoint('vpc-interface-endpoint-efs', {
+    //   service: InterfaceVpcEndpointAwsService.ELASTIC_FILESYSTEM,
+    //   securityGroups: [vpcSg],
+    //   privateDnsEnabled: true,
+    // });
 
     const efs = createFileSystem(this, {
       name: 'cdk-efs-batch-s3-efs',
@@ -108,6 +116,7 @@ export class BrenderStudioStack extends cdk.Stack {
       ecrRepositoryName: ecrImageNameParameter.valueAsString,
       s3BucketName: s3Bucket.bucketName,
       blenderVersionsList: blenderVersions,
+      isPrivate,
     })
   }
 }
