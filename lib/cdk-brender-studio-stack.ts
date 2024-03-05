@@ -36,7 +36,7 @@ export class BrenderStudioStack extends cdk.Stack {
     const brenderBucketName = 'brender-bucket-s3-' + uuidv4();
 
     // cdk deploy --context stackName=BRENDER-STACK-TEST --parameters ecrImageName=brender-repo-ecr --context blenderVersions="GPU-4.0.0,CPU-4.0.0,CPU-3.6.0" --context brenderBucketName=brender-david-studio-test
-    // cdk deploy --context stackName=BRENDER-STACK-TEST --parameters ecrImageName=brender-repo-ecr --context blenderVersions="GPU-4.0.0,CPU-4.0.0,CPU-3.6.0"  --context isPrivate="false"
+    // cdk deploy --context stackName=BRENDER-STACK-TEST-TAG-2 --parameters ecrImageName=brender-repo-ecr --context blenderVersions="GPU-4.0.0,CPU-4.0.0,CPU-3.6.0"  --context isPrivate="false"
 
 
 
