@@ -1,5 +1,5 @@
 import { RemovalPolicy } from "aws-cdk-lib";
-import {  Port } from "aws-cdk-lib/aws-ec2";
+import { Port } from "aws-cdk-lib/aws-ec2";
 import { FileSystem, IFileSystem } from "aws-cdk-lib/aws-efs";
 import { AnyPrincipal, PolicyDocument, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
@@ -12,10 +12,12 @@ interface FileSystemProps {
 
 export function createFileSystem(scope: Construct, props: FileSystemProps): IFileSystem {
 
+    const { name, vpc, sg } = props;
+
     const fileSystem = new FileSystem(scope, props.name, {
-        vpc: props.vpc,
-        fileSystemName: props.name,
-        securityGroup: props.sg,
+        vpc: vpc,
+        fileSystemName: name,
+        securityGroup: sg,
         removalPolicy: RemovalPolicy.DESTROY,
         encrypted: true,
         fileSystemPolicy: new PolicyDocument({
@@ -35,7 +37,7 @@ export function createFileSystem(scope: Construct, props: FileSystemProps): IFil
         }),
     });
 
-    fileSystem.connections.allowFrom(props.sg, Port.tcp(2049), 'Allows inbound traffic from Security Group');
+    fileSystem.connections.allowFrom(sg, Port.tcp(2049), 'Allows inbound traffic from Security Group');
 
 
     return fileSystem;

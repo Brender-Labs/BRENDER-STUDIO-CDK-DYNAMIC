@@ -178,17 +178,23 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
 
     // Context param ex: "GPU-4.0.0,CPU-4.0.0,CPU-3.6.0"
 
+
     let blenderList = blenderVersionsList.split(',').map(version => version.toLowerCase());
     console.log('blenderList: ', blenderList);
 
-
     blenderList.map((version, index) => {
-        let prefix = version.startsWith("gpu") ? "GPU" : "CPU";
-        new EcsJobDefinition(scope, `JobDefinition-${prefix}-${index}-` + uuidv4(), {
+        let prefixName = version.startsWith("gpu") ? "GPU" : "CPU";
+        let prefixVersion = version.startsWith("gpu") ? "gpu" : "cpu"
+        let versionBlender = version.split('-')[1].replace(/\./g, '_'); 
+        let jobDefinitionName = `JobDefinition${prefixName}__${prefixVersion}_${versionBlender}__${uuidv4()}`;
+        let containerDefinitionName = `ContainerDefinition${prefixName}__${prefixVersion}_${versionBlender}__${uuidv4()}`;
+        console.log('jobDefinitionName: ', jobDefinitionName);
+
+        new EcsJobDefinition(scope, jobDefinitionName, {
             timeout: cdk.Duration.minutes(1),
             retryAttempts: 1,
-            jobDefinitionName: `JobDefinition-${prefix}-${index}-` + uuidv4(),
-            container: new EcsEc2ContainerDefinition(scope, `ContainerDefinition-${prefix}-${index}` + uuidv4(), {
+            jobDefinitionName: jobDefinitionName,
+            container: new EcsEc2ContainerDefinition(scope, containerDefinitionName, {
                 image: ContainerImage.fromEcrRepository(ecrRepository, version),
                 memory: cdk.Size.mebibytes(2048),
                 cpu: 1,
@@ -202,6 +208,7 @@ export function createBatchResources(scope: Construct, props: BatchResourcesProp
             }),
         });
     });
+
 
 
 }
